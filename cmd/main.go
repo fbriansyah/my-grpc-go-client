@@ -9,12 +9,12 @@ import (
 	"github.com/fbriansyah/my-grpc-go-client/internal/adapter/hello"
 	"github.com/fbriansyah/my-grpc-go-client/internal/adapter/resiliency"
 	dresl "github.com/fbriansyah/my-grpc-go-client/internal/application/domain/resiliency"
+	"github.com/fbriansyah/my-grpc-go-client/internal/interceptor"
 	resl_proto "github.com/fbriansyah/my-grpc-proto/protogen/go/resiliency"
-	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/retry"
+
+	// grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/retry"
 	"github.com/sony/gobreaker"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/credentials/insecure"
 )
 
 var cbreaker *gobreaker.CircuitBreaker
@@ -43,24 +43,39 @@ func init() {
 func main() {
 	var opts []grpc.DialOption
 
-	opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	// opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	// opts = append(opts,
+	// 	grpc.WithUnaryInterceptor(
+	// 		grpc_retry.UnaryClientInterceptor(
+	// 			grpc_retry.WithCodes(codes.Unknown, codes.Internal),
+	// 			grpc_retry.WithMax(4),
+	// 			grpc_retry.WithBackoff(grpc_retry.BackoffExponential(2*time.Second)),
+	// 		),
+	// 	),
+	// )
+
+	// opts = append(opts,
+	// 	grpc.WithStreamInterceptor(
+	// 		grpc_retry.StreamClientInterceptor(
+	// 			grpc_retry.WithCodes(codes.Unknown, codes.Internal),
+	// 			grpc_retry.WithMax(4),
+	// 			grpc_retry.WithBackoff(grpc_retry.BackoffLinear(3*time.Second)),
+	// 		),
+	// 	),
+	// )
 	opts = append(opts,
-		grpc.WithUnaryInterceptor(
-			grpc_retry.UnaryClientInterceptor(
-				grpc_retry.WithCodes(codes.Unknown, codes.Internal),
-				grpc_retry.WithMax(4),
-				grpc_retry.WithBackoff(grpc_retry.BackoffExponential(2*time.Second)),
-			),
+		grpc.WithChainUnaryInterceptor(
+			interceptor.LogUnaryClientInterceptor(),
+			interceptor.BasicUnaryClientInterceptor(),
+			interceptor.TimeoutUnaryClientInterceptor(time.Second*5),
 		),
 	)
 
 	opts = append(opts,
-		grpc.WithStreamInterceptor(
-			grpc_retry.StreamClientInterceptor(
-				grpc_retry.WithCodes(codes.Unknown, codes.Internal),
-				grpc_retry.WithMax(4),
-				grpc_retry.WithBackoff(grpc_retry.BackoffLinear(3*time.Second)),
-			),
+		grpc.WithChainStreamInterceptor(
+			interceptor.LogStreamClientInterceptor(),
+			interceptor.BasicClientStreamInterceptor(),
+			interceptor.TimeoutStreamClientInterceptor(time.Second*20),
 		),
 	)
 
